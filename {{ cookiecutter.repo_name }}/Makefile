@@ -1,12 +1,14 @@
-.PHONY: clean data lint requirements sync_data_to_s3 sync_data_from_s3
+.PHONY: clean data lint requirements sync_data_to_blob sync_data_from_blob sync_data_to_s3 sync_data_from_s3
 
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
 
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+BLOB = {{ cookiecutter.blob }}
 BUCKET = {{ cookiecutter.s3_bucket }}
-PROFILE = {{ cookiecutter.aws_profile }}
+AZ_PROFILE = {{ cookiecutter.azure_subscription }}
+AWS_PROFILE = {{ cookiecutter.aws_profile }}
 PROJECT_NAME = {{ cookiecutter.repo_name }}
 PYTHON_INTERPRETER = {{ cookiecutter.python_interpreter }}
 
@@ -14,6 +16,10 @@ ifeq (,$(shell which conda))
 HAS_CONDA=False
 else
 HAS_CONDA=True
+endif
+
+ifeq (default,$(AZ_PROFILE))
+	az account set --subscription $(PROFILE)
 endif
 
 #################################################################################
@@ -38,20 +44,29 @@ clean:
 lint:
 	flake8 src
 
+## Upload Data to Blob Storage
+sync_data_to_blob:
+	azcopy sync data/ $(BUCKET)/data/
+
+
+## Download Data from Blob Storage
+sync_data_from_blob:
+	azcopy sync $(BUCKET)/data/ data/
+
 ## Upload Data to S3
 sync_data_to_s3:
-ifeq (default,$(PROFILE))
+ifeq (default,$(AWS_PROFILE))
 	aws s3 sync data/ s3://$(BUCKET)/data/
 else
-	aws s3 sync data/ s3://$(BUCKET)/data/ --profile $(PROFILE)
+	aws s3 sync data/ s3://$(BUCKET)/data/ --profile $(AWS_PROFILE)
 endif
 
 ## Download Data from S3
 sync_data_from_s3:
-ifeq (default,$(PROFILE))
+ifeq (default,$(AWS_PROFILE))
 	aws s3 sync s3://$(BUCKET)/data/ data/
 else
-	aws s3 sync s3://$(BUCKET)/data/ data/ --profile $(PROFILE)
+	aws s3 sync s3://$(BUCKET)/data/ data/ --profile $(AWS_PROFILE)
 endif
 
 ## Set up python interpreter environment
